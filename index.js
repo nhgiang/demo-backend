@@ -3,14 +3,24 @@ var cors = require('cors');
 var multer = require('multer');
 var path = require('path');
 var { v4: uuidv4 } = require('uuid')
-var os = require("os")
 const bodyParser = require('body-parser');
+const fs = require('fs');
+const { uniqueNamesGenerator, adjectives, colors, animals } = require('unique-names-generator');
+const randomEmail = require('random-email');
+
+const customConfig = {
+  dictionaries: [adjectives, colors, animals],
+  separator: ' ',
+  length: 2,
+};
+
+
 const mongoose = require('mongoose');
 mongoose.connect('mongodb://127.0.0.1:27017/admin');
 const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
-  username: String,
+  fullName: String,
   password: String,
   phone: String,
   email: String,
@@ -64,7 +74,55 @@ app.get('/get_list', async (req, res, next) => {
   res.status(200).send(users);
 })
 
-app.listen(3000, () => {
+app.get('/generate', async (req, res, next) => {
+  const testFolder = './uploads';
+  const files = await fs.readdirSync(testFolder);
+  const users = files.map(file => {
+    const shortName = uniqueNamesGenerator(customConfig);
+    const a = file.split('.')[file.split('.').length-1]
+    const user = {
+      fullName: shortName,
+      password: '123456',
+      phone: '' + createMobilePhoneNumber(),
+      email: randomEmail({ domain: 'gmail.com' }),
+    }
+    if (['avif','gif','jpg','jpeg','png','svg'].includes(a)) user.image = 'uploads/' + file
+    else if (['mp4','m4v','wmv','flv','vob','3gp'].includes(a)) user.video = 'uploads/' + file
+    return user
+  });
+  const result = await User.insertMany(users)
+  res.status(200).send(result);
+})
+
+app.listen(3000, async () => {
+
 
   console.log('Server started on port 3000')
 });
+
+const createMobilePhoneNumber = () => {
+  const generator = new PhoneNumberGenerator();
+  return generator.generatePhoneNumber();
+};
+
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+}
+
+class PhoneNumberGenerator {
+  constructor() {
+    this.countryCode = +84;
+    this.phoneNumberLength = 9;
+  }
+
+  generatePhoneNumber() {
+    let phoneNumber = this.countryCode;
+    for (let i = 0; i < this.phoneNumberLength; i++) {
+      phoneNumber += getRandomInt(0, 9);
+    }
+    return phoneNumber;
+  }
+}
+
